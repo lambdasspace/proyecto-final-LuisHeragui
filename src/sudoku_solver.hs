@@ -1,10 +1,24 @@
-import Data.Map as Map
+import Data.Array
+import Data.List
 import Data.Maybe
+import Control.Monad
 
-type Celda = String
-type Valor = Int
-type Tablero = Map.Map Celda [Valor]
+type Valor = Char
+type Celda = (Char, Char)
+type Unidad = [Celda]
+
+type Tablero = Array Celda [Valor]
+
 data Tree a = Node a [Tree a]
+
+filas = "ABCDEFGHI"
+columnas = "123456789"
+
+cartesiano :: [a] -> [b] -> [(a, b)]
+cartesiano xs ys = (,) <$> xs <*> ys
+
+celdas :: [Celda]
+celdas = cartesiano filas columnas
 
 asigna :: Tablero -> (Celda, Valor) -> Maybe Tablero
 asigna t (c, v) = Nothing
@@ -37,4 +51,5 @@ muestraMenu :: IO Char
 muestraMenu = return 'c'
 
 main :: IO ()
-main = putStrLn "hola"
+main = do
+    putStrLn "SUDOKU SOLVER \n"
