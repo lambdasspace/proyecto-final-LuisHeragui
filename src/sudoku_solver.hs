@@ -3,14 +3,16 @@ import Data.List
 import Data.Maybe
 import Control.Monad
 
+-- Sinónimo para los valores del Sudoku.
 type Valor = Char
+-- Sinónimo para las celdas del tablero.
 type Celda = (Char, Char)
+-- Sinónimo para las unidades del tablero.
 type Unidad = [Celda]
-
+-- Sinónimo para el tablero del Sudoku.
 type Tablero = Array Celda [Valor]
 
-data Tree a = Node a [Tree a]
-
+-----------------------------Preparación del problema
 filas = "ABCDEFGHI"
 columnas = "123456789"
 digitos = "123456789"
@@ -33,31 +35,69 @@ posibilidades :: Tablero
 posibilidades = array area [(s, digitos) | s <- celdas]
 
 amigos :: Array Celda [Celda]
-amigos = array area [(c, set (unisXcelda!c)) | c <- celdas]
+amigos = array area [(c, set (unisXcelda ! c)) | c <- celdas]
   where
     set = nub . concat
 
+-----------------------------Satisfacción de restricciones
+aplicaRestricciones :: [(Celda, Valor)] -> Maybe Tablero
+aplicaRestricciones cvs = foldM asigna posibilidades cvs
+
 asigna :: Tablero -> (Celda, Valor) -> Maybe Tablero
-asigna t (c, v) = Nothing
+asigna t (c, v) =
+    if elem v digitos
+    then do foldM elimina t (zip (repeat c) aEliminar)
+    else return t
+  where
+    aEliminar = delete v vals
+    vals = t ! c
 
 elimina :: Tablero -> (Celda, Valor) -> Maybe Tablero
-elimina t (c, v) = Nothing
+elimina t (c, v)
+    -- Si 'v' no se encuentra en los valores de c, entonces ya está eliminado.
+    | notElem v vals = return t
+    -- Si no, entonces eliminamos a 'v' de los valores de 'c'.
+    | otherwise = do
+        nuevoTab2 <- case valsNuevos of
+            -- Esto no puede suceder, pues contradice a valsNuevos.
+            []   -> Nothing
+            -- Si sólo queda un valor en 'c', entonces lo eliminamos de sus amigos.
+            [v'] -> do foldM elimina nuevoTab (zip amigosC (repeat v'))
+            -- En otro caso, regresamos el nuevo tablero.
+            _    -> return nuevoTab
+            -- Por último checamos a los amigos de 'c' para saber si una unidad
+            -- quedó reducida a sólo un valor 'v'.
+        foldM (evalua v) nuevoTab2 (unisXcelda ! c)
+  where
+    vals = t ! c
+    valsNuevos = delete v vals
+    nuevoTab = t // [(c, valsNuevos)]
+    amigosC = amigos ! c
 
+evalua :: Valor -> Tablero -> Unidad -> Maybe Tablero
+evalua v t u = case filter ((v `elem`) . (t !)) u of
+    []  -> Nothing
+    [c] -> asigna t (c,v)
+    _   -> return t
+
+-----------------------------Primer Fallo
 busca :: Tablero -> Maybe Tablero
 busca t = Nothing
 
-obtenSolucion :: Tree Tablero -> Tablero
-obtenSolucion (Node a []) = a
+-----------------------------Muestra de soluciones
+obtenSolucion :: [Maybe Tablero] -> Tablero
+obtenSolucion (x:xs) = fromJust x
 
-obtenNumSoluciones :: Tree Tablero -> Int
-obtenNumSoluciones (Node a []) = 0
+obtenNumSoluciones :: [Maybe Tablero] -> Int
+obtenNumSoluciones ts = 0
 
 muestraSolucion :: IO ()
 muestraSolucion = putStrLn "hola"
 
 muestraNumSoluciones :: IO ()
 muestraNumSoluciones = putStrLn "hola"
------------------------------Impresión
+
+-----------------------------Impresión del tablero
 ejemplo :: Tablero
 ejemplo = array area [(s, (fst s) : (snd s) : []) | s <- celdas]
 
@@ -104,7 +144,7 @@ obtenValores (c:cs) cv muestra = do
 
 solicitaCeldas :: IO [(Celda, Valor)]
 solicitaCeldas = do
-    putStrLn "\n¿En qué celdas desea colocar valores?"
+    putStrLn "\n\n¿En qué celdas desea colocar valores?"
     putStrLn "Ejemplo: A1 C4 D9 I2"
     imprimeTablero ejemplo
     putStr "Celdas: "
@@ -115,7 +155,7 @@ solicitaCeldas = do
             v <- obtenValores cels [] ejemplo
             return (actualiza celdas v [])
         else do
-            putStr "\nPor favor siga el ejemplo e ingrese celdas válidas.\n"
+            putStr "\nPor favor siga el ejemplo e ingrese celdas válidas."
             solicitaCeldas
 
 actualiza :: [Celda] -> [(Celda, Valor)] -> [(Celda, Valor)] -> [(Celda, Valor)]
@@ -138,7 +178,10 @@ muestraMenu = do
 procesa :: Char -> IO ()
 procesa '1' = do
     v <- solicitaCeldas
-    putStr "Bien"
+    tablero <- return $ aplicaRestricciones v
+    case tablero of
+        Nothing -> putStrLn "No hay solución.\n"
+        Just s  -> imprimeTablero s
 procesa '2' = putStrLn "\n\nSaliendo...\n"
 procesa _ = putStr "\n\nOpción no válida.\n\n"
 
