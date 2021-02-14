@@ -190,7 +190,10 @@ muestraSoluciones ts =
             putStrLn $ "Su sudoku tiene " ++ show numSols ++ " soluciones."
             putStrLn "Una posible solución es:"
             imprimeTablero $ head sols
-        else putStrLn "Su sudoku es horrible y tiene más de 1000 soluciones. \n"
+        else do
+            putStrLn "Su sudoku es horrible y tiene más de 1000 soluciones."
+            putStrLn "Una posible solución es:"
+            imprimeTablero $ head sols
   where
     sols = take 1000 ts
     numSols = length sols
