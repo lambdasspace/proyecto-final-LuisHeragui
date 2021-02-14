@@ -1,6 +1,7 @@
 import Data.Array
 import Data.List
 import Data.Maybe
+import Data.Tree
 import Control.Monad
 
 -- Sinónimo para los valores del Sudoku.
@@ -11,6 +12,8 @@ type Celda = (Char, Char)
 type Unidad = [Celda]
 -- Sinónimo para el tablero del Sudoku.
 type Tablero = Array Celda [Valor]
+
+type TabTree = Tree (Maybe Tablero)
 
 -----------------------------Preparación del problema
 filas = "ABCDEFGHI"
@@ -75,27 +78,52 @@ elimina t (c, v)
     amigosC = amigos ! c
 
 evalua :: Valor -> Tablero -> Unidad -> Maybe Tablero
-evalua v t u = case filter ((v `elem`) . (t !)) u of
+evalua v t u = case unisValidas of
     []  -> Nothing
     [c] -> asigna t (c,v)
     _   -> return t
+  where
+    unisValidas = filter ((v `elem`) . (t !)) u
 
 -----------------------------Primer Fallo
-busca :: Tablero -> Maybe Tablero
-busca t = Nothing
+busca :: TabTree -> TabTree
+busca (Node mt mts) =
+    case mt of
+        Nothing -> (Node mt [])
+        Just t  -> case [(length vs,(c,vs)) | (c,vs) <- assocs $ t, length vs /= 1] of
+            [] -> Node (Just t) []
+            ls -> Node (Just t) $ fmap busca (actualizaHijos mts $ map (\v -> asigna t (c,v)) vals)
+              where
+                (_,(c,vals)) = minimum ls
+
+actualizaHijos :: [TabTree] -> [Maybe Tablero] -> [TabTree]
+actualizaHijos ts [] = ts
+actualizaHijos ts (mt:mts) = actualizaHijos (ts ++ [Node mt []]) mts
 
 -----------------------------Muestra de soluciones
-obtenSolucion :: [Maybe Tablero] -> Tablero
-obtenSolucion (x:xs) = fromJust x
+obtenSoluciones :: TabTree -> [Tablero]
+obtenSoluciones (Node mt []) = case mt of
+    Nothing -> []
+    Just t  -> [t]
+obtenSoluciones (Node mt mts) = concatMap obtenSoluciones mts
 
-obtenNumSoluciones :: [Maybe Tablero] -> Int
-obtenNumSoluciones ts = 0
-
-muestraSolucion :: IO ()
-muestraSolucion = putStrLn "hola"
-
-muestraNumSoluciones :: IO ()
-muestraNumSoluciones = putStrLn "hola"
+muestraSoluciones :: [Tablero] -> IO ()
+muestraSoluciones [] = putStrLn "No hay solución.\n"
+muestraSoluciones ts =
+    if numSols == 1
+    then do
+        putStrLn "Tu sudoku tiene 1 solución."
+        putStrLn "La solución es:"
+        imprimeTablero $ head sols
+    else if numSols < 1000
+        then do
+            putStrLn $ "Tu sudoku tiene " ++ show numSols ++ " soluciones."
+            putStrLn "Una posible solución es:"
+            imprimeTablero $ head sols
+        else putStrLn "Tu sudoku es horrible y tiene más de 1000 soluciones."
+  where
+    sols = take 1000 ts
+    numSols = length sols
 
 -----------------------------Impresión del tablero
 ejemplo :: Tablero
@@ -178,10 +206,9 @@ muestraMenu = do
 procesa :: Char -> IO ()
 procesa '1' = do
     v <- solicitaCeldas
-    tablero <- return $ aplicaRestricciones v
-    case tablero of
+    case aplicaRestricciones v of
         Nothing -> putStrLn "No hay solución.\n"
-        Just s  -> imprimeTablero s
+        Just s  -> muestraSoluciones $ obtenSoluciones $ busca (Node (Just s) [])
 procesa '2' = putStrLn "\n\nSaliendo...\n"
 procesa _ = putStr "\n\nOpción no válida.\n\n"
 
