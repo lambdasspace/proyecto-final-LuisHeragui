@@ -184,16 +184,16 @@ muestraSoluciones ts =
     then do
         putStrLn "Su sudoku tiene 1 solución."
         putStrLn "La solución es:"
-        imprimeTablero $ head sols
+        imprimeTablero sols
     else if numSols < 1000
         then do
             putStrLn $ "Su sudoku tiene " ++ show numSols ++ " soluciones."
             putStrLn "Una posible solución es:"
-            imprimeTablero $ head sols
+            imprimeTablero sols
         else do
             putStrLn "Su sudoku es horrible y tiene más de 1000 soluciones."
             putStrLn "Una posible solución es:"
-            imprimeTablero $ head sols
+            imprimeTablero sols
   where
     sols = take 1000 ts
     numSols = length sols
@@ -207,8 +207,20 @@ ejemplo :: Tablero
 ejemplo = array area [(s,(fst s) : (snd s) : []) | s <- celdas]
 
 -- | Función que recibe un tablero y lo imprime en la pantalla.
-imprimeTablero :: Tablero -> IO ()
-imprimeTablero = putStrLn . tableroToString
+imprimeTablero :: [Tablero] -> IO ()
+imprimeTablero [t] = putStrLn $ tableroToString t
+imprimeTablero (t:ts) = do
+    putStrLn $ tableroToString t
+    putStr "¿Desea ver otra solución? (y/n) "
+    opcion <- getChar
+    case opcion of
+        'y' -> do
+            putStr "\n"
+            imprimeTablero ts
+        'n' -> putStrLn "\n\nSaliendo...\n"
+        _   -> do
+            putStrLn "\n\nOpción inválida."
+            imprimeTablero (t:ts)
 
 {- | Función que recibe un tablero y realiza un análisis para convertirlo en una cadena
 y que pueda ser impreso en la pantalla.
@@ -257,7 +269,7 @@ obtenValores (c:cs) cv muestra = do
             let celda = (head c,last c)
                 muestra' = muestra // [(celda,[x,' '])]
             putStr "\n"
-            imprimeTablero muestra'
+            imprimeTablero [muestra']
             obtenValores cs (cv ++ [(celda,x)]) muestra'
         else do
             putStrLn "\nPor favor ingrese un valor correcto."
@@ -271,7 +283,7 @@ solicitaCeldas :: IO [(Celda,Valor)]
 solicitaCeldas = do
     putStrLn "\n\n¿En qué celdas desea colocar valores?"
     putStrLn "Ejemplo: A1 C4 D9 I2"
-    imprimeTablero ejemplo
+    imprimeTablero [ejemplo]
     putStr "Celdas: "
     cs <- getLine
     let cels = words cs
